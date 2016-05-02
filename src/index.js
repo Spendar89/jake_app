@@ -2,6 +2,9 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import { AppContainer } from 'react-hot-loader';
 import Root from './components/root';
+import * as handlers from './handlers';
+
+global.handlers = handlers;
 
 ReactDOM.render(
   <AppContainer component={ Root }/>,
