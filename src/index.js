@@ -2,9 +2,9 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import { AppContainer } from 'react-hot-loader';
 import Root from './components/root';
-import * as handlers from './handlers';
+import * as plugins from './plugins';
 
-global.handlers = handlers;
+global.plugins = plugins;
 
 ReactDOM.render(
   <AppContainer component={ Root }/>,
