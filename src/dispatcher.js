@@ -1,15 +1,16 @@
 const page = require('page');
 const VALIDATION_TYPES = require('validation_types');
 
+//constructor (events, actions, routes, listeners, sockets, validators, store) {
 export default class Dispatcher {
-  constructor (events, actions, routes, listeners, sockets, validators, store) {
+  constructor (store, actions, handlers, registers) {
     this.routes = routes;
     this.listeners = listeners;
     this.sockets = sockets;
-    this.handlers = { 
-      ...events, 
-      ...routes, 
-      ...listeners, 
+    this.handlers = {
+      ...events,
+      ...routes,
+      ...listeners,
       ...sockets
     };
     this.actions = actions;
@@ -50,7 +51,7 @@ export default class Dispatcher {
    *
    * dispatch
    *
-   * calls lcoal and remote action functions specified 
+   * calls lcoal and remote action functions specified
    * in handler, and commits changes to store.
    *
    * @return {object} new store value after updates.
@@ -62,7 +63,7 @@ export default class Dispatcher {
     let validator = this.debug && this.validators[key]; // skip validation in prod
 
     // call dispatcher.validate if validator obj is registered for handler
-    // TODO: when inValid, specify which type of validation failed, 
+    // TODO: when inValid, specify which type of validation failed,
     // e.g required, type, custom validate function, etc.
     let validation = validator && this.validate(validator, payload);
 
@@ -73,8 +74,8 @@ export default class Dispatcher {
     // throw an error if no actions exists for given key
     if (!actions) {
       throw `
-      An event with key ${key} does not exist.  
-      Make sure it is spelled correctly, in both your component and actions.`; 
+      An event with key ${key} does not exist.
+      Make sure it is spelled correctly, in both your component and actions.`;
     };
 
     if (!_actions) this.actionTimes = {};
@@ -83,8 +84,8 @@ export default class Dispatcher {
       try {
         let start = moment();
         // Conditional Actions:
-        // specify a conditional action by including an object 
-        // in your actions array with a getter as its key and 
+        // specify a conditional action by including an object
+        // in your actions array with a getter as its key and
         // the usual action string as its value.
         if (typeof action === 'object') {
           const [[ _key='', _actions ]] = _.pairs(action);
@@ -92,10 +93,10 @@ export default class Dispatcher {
           const shouldDispatch = this.store.get(_path);
 
           if (shouldDispatch) {
-            input = await this.dispatch({ 
-              key: _key, 
-              payload: input 
-            }, _actions);  
+            input = await this.dispatch({
+              key: _key,
+              payload: input
+            }, _actions);
 
             action = `${_key}: \n \t${_actions.join(', \n \t')}`;
           } else {
@@ -142,7 +143,7 @@ export default class Dispatcher {
       };
     };
 
-    // commit updated store to trigger async 
+    // commit updated store to trigger async
     // update events, which rerenders components
     const state = this.store.commit();
 
@@ -169,7 +170,7 @@ export default class Dispatcher {
       _.set(validation, path, _.reduce(validator, (result, rule, type) => {
         const validateByType = VALIDATION_TYPES[type] || VALIDATION_TYPES.default;
 
-        result[type] = validateByType(rule, i, path, input, store); 
+        result[type] = validateByType(rule, i, path, input, store);
 
         return result;
       }, {}));
@@ -181,9 +182,8 @@ export default class Dispatcher {
   /**
    * registerListeners
    *
-   * passively update state by registering event-listeners 
+   * passively update state by registering event-listeners
    * for cursors specified in listerner-keys
-   */
   registerListeners () {
     for (let key in this.listeners) {
       // multiple cursor paths are separated by commas,
@@ -199,21 +199,22 @@ export default class Dispatcher {
 
         // if cursor exists at path, initiate a listener
         // that will dispatch an event for the current
-        // listener-key and cursor-data 
+        // listener-key and cursor-data
         cursor && cursor.on('update', ({ data: payload }) => {
-          this.dispatch({ 
-            key, 
-            payload 
+          this.dispatch({
+            key,
+            payload
           });
         });
       };
     };
   };
+   */
 
   /**
    * registerRoutes
    *
-   * update app state by registering the keys of 
+   * update app state by registering the keys of
    * this.routes object with page.js router
    */
   registerRoutes () {
@@ -221,7 +222,7 @@ export default class Dispatcher {
       page(key, ({ params }) => {
         // get current parsed query string object
         const qs = Util.getQueryString();
-        // payload is the result of merging route 
+        // payload is the result of merging route
         // params and query string objects
         const payload = { ...params, ...qs };
 
@@ -233,16 +234,16 @@ export default class Dispatcher {
     };
   };
 
-  registerSockets () {
-    for (let key in this.sockets) {
-      socket.on(key, payload => {
-        this.dispatch({
-          key,
-          payload
-        });
-      });
-    }
-  }
+  //registerSockets () {
+    //for (let key in this.sockets) {
+      //socket.on(key, payload => {
+        //this.dispatch({
+          //key,
+          //payload
+        //});
+      //});
+    //}
+  //}
 
   getActionTime (start) {
     let key = this.currentAction;
@@ -275,7 +276,7 @@ export default class Dispatcher {
   };
 
   /**
-   * 
+   *
    * log
    *
    * logger function, used for debugging in dev console.
@@ -292,7 +293,7 @@ export default class Dispatcher {
 
     _.each(validation, (v, k) => {
       Util.styleLogHeader(`validated ${k}`);
-      Util.styleLogObject(v); 
+      Util.styleLogObject(v);
     });
 
     console.log("\n");
