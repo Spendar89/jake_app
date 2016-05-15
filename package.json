@@ -25,6 +25,10 @@
     "webpack-dev-server": "^1.14.1"
   },
   "dependencies": {
+    "babel-plugin-syntax-async-functions": "^6.8.0",
+    "babel-plugin-transform-regenerator": "^6.8.0",
+    "babel-polyfill": "^6.8.0",
+    "moment": "^2.13.0",
     "react": "^15.0.1",
     "react-dom": "^15.0.1"
   }

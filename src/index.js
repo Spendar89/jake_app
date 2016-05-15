@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import { AppContainer } from 'react-hot-loader';
 import Root from './components/root';
 import * as plugins from './plugins';
+import Dispatcher from './Dispatcher'
 
 global.plugins = plugins;
 

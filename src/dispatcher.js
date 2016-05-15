@@ -1,70 +1,48 @@
-const page = require('page');
-const VALIDATION_TYPES = require('validation_types');
+import 'babel-polyfill';
+import moment from 'moment';
 
-//constructor (events, actions, routes, listeners, sockets, validators, store) {
 export default class Dispatcher {
-  constructor (store, actions, handlers, registers) {
-    this.routes = routes;
-    this.listeners = listeners;
-    this.sockets = sockets;
-    this.handlers = {
-      ...events,
-      ...routes,
-      ...listeners,
-      ...sockets
-    };
+  constructor ({ store, actions, handlers, validators, config={ debug: true }}) {
+    this.store = store;
     this.actions = actions;
+    this.handlers = handlers
     this.validators = validators;
-    this.store = global.currentStore = store;
-    this.history = [];
-    this.logs = [];
-    this.debug = this.store.get('debug');
-    this.currentAction = false;
-    global.timeTravel = this.timeTravel.bind(this);
-
-    this.registerRoutes();
-    this.registerListeners();
-    this.registerSockets();
+    this.config = config;
   };
 
+  _history: [];
+
+  _logs: [];
+
+  _currentAction: false;
+
   _getRemoteAction () {
-    const key = this.currentAction;
+    const key = this._currentAction;
+
     return this.actions.remote[key];
   };
 
   async _handleRemote (remote, local, input) {
     const output = await remote(this.store, input)
+    const _input = { ...input, ...output };
 
-    input = { ...input, ...output };
+    if (!local) return _input;
 
-    if (!local) return input;
-
-    return this._handleLocal(local, input, true);
+    return this._handleLocal(local, _input, true);
   };
 
   _handleLocal (local, input, hasRemote) {
     const output = local(this.store, input);
+
     return { ...input, ...output };
   };
 
-  /**
-   *
-   * dispatch
-   *
-   * calls lcoal and remote action functions specified
-   * in handler, and commits changes to store.
-   *
-   * @return {object} new store value after updates.
-   *
-   */
   async dispatch ({ key, payload={} }, _actions) {
     const actions = _actions || this.handlers[key]; // array of action keys
 
-    let validator = this.debug && this.validators[key]; // skip validation in prod
+    let validator = this.config.debug && this.validators[key]; // skip validation in prod
 
     // call dispatcher.validate if validator obj is registered for handler
-    // TODO: when inValid, specify which type of validation failed,
-    // e.g required, type, custom validate function, etc.
     let validation = validator && this.validate(validator, payload);
 
     // initial input value is set to payload and validator result, letting
@@ -82,11 +60,11 @@ export default class Dispatcher {
 
     for (let action of actions) {
       try {
-        let start = moment();
-        // Conditional Actions:
-        // specify a conditional action by including an object
-        // in your actions array with a getter as its key and
-        // the usual action string as its value.
+        let start = new Date();
+
+        // specify a conditional action by including an object in your
+        // actions array with a getter as its key and the usual action
+        // string as its value.
         if (typeof action === 'object') {
           const [[ _key='', _actions ]] = _.pairs(action);
           const _path = _key.split('.');
@@ -110,7 +88,7 @@ export default class Dispatcher {
           action = 'fx:' + action;
         };
 
-        if (!_actions) this.currentAction = action;
+        if (!_actions) this._currentAction = action;
 
         // validate input after each action
         validation = validator && this.validate(validator, input);
@@ -125,7 +103,6 @@ export default class Dispatcher {
         };
 
         if (remote) {
-          this.store.commit();
           // remote actions are async, so 'wait' for result (does not block)
           input = await this._handleRemote(remote, local, input);
         };
@@ -135,28 +112,23 @@ export default class Dispatcher {
           break;
         };
 
-        let actionTime = this.getActionTime(start);
-        this.setActionTime(actionTime);
+        let actionTime = this._getActionTime(start);
+        this._setActionTime(actionTime);
       }
       catch (e) {
         console.error('Error in %s: %s', action, e.message);
       };
     };
 
-    // commit updated store to trigger async
-    // update events, which rerenders components
-    const state = this.store.commit();
-
-    if (this.debug) {
+    if (this.config.debug) {
       this.log(key, actions, input, validation); // log handler result in console
-
-      this.record(state); // add state to history for timetravel
+      this._record();
     };
 
     return input;
   };
 
-  validate (validators={}, input) {
+  validate (validators={}, input, validationTypes={}) {
     const store = this.store;
 
     return _.reduce(validators, (validation, validator, key) => {
@@ -168,7 +140,7 @@ export default class Dispatcher {
       const i = _.get(input, path);
 
       _.set(validation, path, _.reduce(validator, (result, rule, type) => {
-        const validateByType = VALIDATION_TYPES[type] || VALIDATION_TYPES.default;
+        const validateByType = validationTypes[type] || validationTypes.default;
 
         result[type] = validateByType(rule, i, path, input, store);
 
@@ -179,100 +151,32 @@ export default class Dispatcher {
     }, {});
   };
 
-  /**
-   * registerListeners
-   *
-   * passively update state by registering event-listeners
-   * for cursors specified in listerner-keys
-  registerListeners () {
-    for (let key in this.listeners) {
-      // multiple cursor paths are separated by commas,
-      // for registering single listener on multiple cursors
-      const pathStrings = key.split(',');
-
-      // register listener for each path
-      for (let pathString of pathStrings) {
-        // nested cursors are separated by periods,
-        // so call split to ocnvert string to array
-        const path = pathString.split('.');
-        const cursor = this.store.select(path);
-
-        // if cursor exists at path, initiate a listener
-        // that will dispatch an event for the current
-        // listener-key and cursor-data
-        cursor && cursor.on('update', ({ data: payload }) => {
-          this.dispatch({
-            key,
-            payload
-          });
-        });
-      };
-    };
-  };
-   */
-
-  /**
-   * registerRoutes
-   *
-   * update app state by registering the keys of
-   * this.routes object with page.js router
-   */
-  registerRoutes () {
-    for (let key in this.routes) {
-      page(key, ({ params }) => {
-        // get current parsed query string object
-        const qs = Util.getQueryString();
-        // payload is the result of merging route
-        // params and query string objects
-        const payload = { ...params, ...qs };
-
-        this.dispatch({
-          key,
-          payload
-        });
-      });
-    };
-  };
-
-  //registerSockets () {
-    //for (let key in this.sockets) {
-      //socket.on(key, payload => {
-        //this.dispatch({
-          //key,
-          //payload
-        //});
-      //});
-    //}
-  //}
-
-  getActionTime (start) {
-    let key = this.currentAction;
+  _getActionTime (start) {
+    let key = this._currentAction;
     let time = moment((moment().diff(start))).milliseconds();
 
     return time + '' + 'ms';
   };
 
-  setActionTime (time) {
-    this.actionTimes[this.currentAction] = time;
+  _setActionTime (time) {
+    this.actionTimes[this._currentAction] = time;
   };
 
-  record (state) {
-    const serialized = state.serialize();
-    const history = this.history.push(serialized);
+  _record () {
+    const serialized = this.store.get();
+    const history = this._history.push(serialized);
 
     return history;
   };
 
   timeTravel (i) {
-    const state = this.history[i];
+    const state = this._history[i];
 
     if (!state) return false;
 
-    this.store.merge(state);
+    this.store = state;
 
-    return this.store
-    .commit()
-    .serialize();
+    return this.store.get()
   };
 
   /**
@@ -286,18 +190,18 @@ export default class Dispatcher {
   log (event, actions, input, validation) {
     const entry = { event, input };
 
-    Util.styleLogHeader(`Handling Event ${this.logs.length}`)
-    Util.styleLogObject(entry)
-    Util.styleLogHeader('action execution times:')
-    Util.styleLogObject(this.actionTimes)
+    //Util.styleLogHeader(`Handling Event ${this._logs.length}`)
+    //Util.styleLogObject(entry)
+    //Util.styleLogHeader('action execution times:')
+    //Util.styleLogObject(this.actionTimes)
 
-    _.each(validation, (v, k) => {
-      Util.styleLogHeader(`validated ${k}`);
-      Util.styleLogObject(v);
-    });
+    //_.each(validation, (v, k) => {
+      //Util.styleLogHeader(`validated ${k}`);
+      //Util.styleLogObject(v);
+    //});
 
-    console.log("\n");
+    //console.log("\n");
 
-    this.logs.push(entry);
+    this._logs.push(entry);
   };
 };
