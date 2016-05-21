@@ -6,6 +6,7 @@ import * as plugins from './plugins';
 import Dispatcher from './Dispatcher'
 
 global.plugins = plugins;
+global.Dispatcher = Dispatcher;
 
 ReactDOM.render(
   <AppContainer component={ Root }/>,
