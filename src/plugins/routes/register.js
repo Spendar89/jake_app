@@ -1,6 +1,6 @@
 import handlers from './handlers';
 
-export default function registerPlugin (dispatch, source) {
+export default function register (dispatch, source) {
   for (let key in handlers) {
     source(key, ({ params: payload }) => {
       // get current parsed query string object

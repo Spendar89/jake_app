@@ -8,16 +8,13 @@ import Dispatcher from './Dispatcher'
 global.plugins = plugins;
 global.Dispatcher = Dispatcher;
 
-ReactDOM.render(
-  <AppContainer component={ Root }/>,
-  document.getElementById('root')
-);
+const app = _root => <AppContainer><_root/></AppContainer>;
+
+ReactDOM.render(app(Root), document.getElementById('root'));
 
 if (module.hot) {
   module.hot.accept('./components/root', _ => {
-    ReactDOM.render(
-      <AppContainer component={ require('./components/root').default }/>,
-      document.getElementById('root')
-    );
+    const Root = require('./components/root').default;
+    ReactDOM.render(app(Root), document.getElementById('root'));
   });
 };

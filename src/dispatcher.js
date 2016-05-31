@@ -1,12 +1,14 @@
 import 'babel-polyfill';
 import moment from 'moment';
+import { ERRORS } from './constants';
+import * as plugins from './plugins';
 
 export default class Dispatcher {
-  constructor ({ store={}, actions={}, handlers={}, config={ debug: true }}) {
+  constructor ({ store = {}, actions = {}, config = { debug: true } }) {
     this.store = store;
     this.actions = actions;
-    this.handlers = handlers
     this.config = config;
+    this.registeredPlugins = this.registerPlugins();
   };
 
   _history: [];
@@ -30,20 +32,15 @@ export default class Dispatcher {
     return { ...input, ...output };
   };
 
-
-
-
-
 // TODO: Conditional Actions will become custom dispatch functions
 
   async dispatch ({ key, payload = {} }) {
     let { local={}, remote={} } = this.actions || {};
-    let actionNames = this.handlers[key] || ['cool', 'dude'];
+    let actionNames = this.handlers[key];
     let input = payload;
 
     async function handleAction (i) {
       const actionName = actionNames[i];
-      console.log(i, actionName)
       const localAction = local[actionName];
       const remoteAction = remote[actionName];
 
@@ -67,6 +64,21 @@ export default class Dispatcher {
     };
 
     requestAnimationFrame(handleAction.bind(this, 0));
+  };
+
+  registerPlugins () {
+    if (this.registeredPlugins) return false;
+
+    for (let name in plugins) {
+      console.log('heeey')
+      const { register } = plugins[name];
+
+      if (typeof register === 'function') {
+        register(this.dispatch);
+      };
+    };
+
+    return true;
   };
 
   _record () {

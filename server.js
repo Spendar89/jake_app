@@ -1,16 +1,23 @@
-var webpack = require('webpack');
-var WebpackDevServer = require('webpack-dev-server');
-var config = require('./webpack.config');
+const webpack = require('webpack');
+const WebpackDevServer = require('webpack-dev-server');
+const config = require('./webpack.config');
 
-new WebpackDevServer(webpack(config), {
+const opts = {
   publicPath: config.output.publicPath,
   hot: true,
   historyApiFallback: true
-}).listen(3000, 'localhost', function (err, result) {
-  if (err) {
-    return console.log(err);
-  }
+};
 
-  console.log('Listening at http://localhost:3000/');
-});
+const webpackDevServer = new WebpackDevServer(
+  webpack(config),
+  opts
+);
+
+const port = 8080;
+
+const cb = err => err
+  ? console.log(err)
+  : console.log('Listening at port', port);
+
+webpackDevServer.listen(port, 'localhost', cb);
 

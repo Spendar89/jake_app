@@ -1,8 +1,8 @@
 import handlers from './handlers';
 
-export default function registerPlugin (dispatch, socket) {
+export default function register (dispatch) {
     for (let key in handlers) {
-      socket.on(key, payload => {
+      this.socket.on(key, payload => {
         dispatch({
           key,
           payload

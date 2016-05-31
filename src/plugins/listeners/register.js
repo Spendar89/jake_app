@@ -1,6 +1,6 @@
 import handlers from './handlers';
 
-export default function registerPlugin (dispatch, source) {
+export default function register (dispatch, source) {
   for (let key in handlers) {
     // multiple source paths are separated by commas,
     // for registering single handler on multiple cursors
